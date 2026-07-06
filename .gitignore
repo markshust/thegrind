@@ -1,0 +1,7 @@
+.DS_Store
+grind.db
+grind.db.bak
+grind.db-journal
+grind.db-wal
+grind.db-shm
+node_modules

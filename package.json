@@ -1,0 +1,16 @@
+{
+  "name": "the-grind",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node --experimental-sqlite server.mjs",
+    "install-service": "./scripts/install-service.sh",
+    "uninstall-service": "./scripts/uninstall-service.sh",
+    "install-proxy": "./scripts/install-proxy.sh",
+    "uninstall-proxy": "./scripts/uninstall-proxy.sh"
+  },
+  "engines": {
+    "node": ">=22.5"
+  }
+}
