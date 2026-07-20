@@ -149,6 +149,9 @@ ul.list{list-style:none;margin:14px 0 0;padding:0;display:flex;flex-direction:co
 .additem{margin-top:2px;border:1px dashed rgba(255,255,255,.14);border-radius:11px;padding:8px;text-align:center;
   cursor:pointer;color:var(--dim);font-family:'VT323';font-size:17px;letter-spacing:1px;transition:.15s;text-transform:uppercase}
 .additem:hover{border-color:var(--pc);color:var(--pc)}
+.resetkeep{list-style:none;margin-top:6px;text-align:center;cursor:pointer;color:var(--dim);
+  font-family:'VT323';font-size:15px;letter-spacing:1px;text-transform:uppercase;transition:.15s}
+.resetkeep:hover{color:var(--gold);text-shadow:0 0 10px var(--gold-glow)}
 
 /* harness / tennis controls */
 .big-stat{display:flex;align-items:baseline;gap:10px;margin:16px 0 4px}
@@ -288,6 +291,7 @@ input.tin{width:82px;font-family:'Bungee';font-size:20px;text-align:center;backg
         <button class="ctl" id="t-log">log it</button>
       </div>
       <div class="mini" id="t-hist">nothing logged yet. keep it alive.</div>
+      <div class="editnote" id="t-reset" style="cursor:pointer">↺ reset streak · keep coins</div>
     </section>
   </div>
 
@@ -340,6 +344,7 @@ const DEFAULT={
   codex:[],
   harnessItems:[],
   tennisBest:0, tennisLog:[], tennisCoins:0,
+  banked:0,                                  // coins kept from cleared cards — a drip that only goes up
   spent:0, redeemed:[],
   prizes:structuredClone(DEFAULT_PRIZES),
   cfg:structuredClone(DEFAULT_CFG)
@@ -360,6 +365,7 @@ function normalize(r){
     spent:typeof r.spent==='number'?r.spent:0,
     redeemed:Array.isArray(r.redeemed)?r.redeemed:[],
     tennisCoins:typeof r.tennisCoins==='number'?r.tennisCoins:0,
+    banked:typeof r.banked==='number'?r.banked:0,
     cfg:mergeCfg(r.cfg),
     prizes:Array.isArray(r.prizes)&&r.prizes.length?r.prizes:base.prizes,
     harnessItems:Array.isArray(r.harnessItems)?r.harnessItems
@@ -451,7 +457,7 @@ loop();let bx;
 const bank=document.getElementById('bank');
 const coinsEl=document.getElementById('coins');
 let shownCoins=0;
-function totalCoins(){return S.n8n.filter(i=>i.done).length*COIN('n8n')
+function totalCoins(){return (S.banked||0)+S.n8n.filter(i=>i.done).length*COIN('n8n')
   +S.codex.filter(i=>i.done).length*COIN('codex')
   +S.harnessItems.filter(i=>i.done).length*COIN('harnessItems')
   +(S.tennisCoins||0);}
@@ -491,7 +497,26 @@ function renderList(id,arr,key){
     const last=names[names.length-1];
     if(last)editName(last,key,arr.length-1);});
   ul.append(add);
+  if(arr.length){
+    const rk=document.createElement('li');rk.className='resetkeep';
+    rk.textContent='↺ clear items · keep coins';
+    rk.title='Empties this list for a fresh round. Coins you already earned here stay banked.';
+    rk.addEventListener('click',()=>resetKeep(key,id));
+    ul.append(rk);
+  }
   updateCounts();
+}
+/* clear a card for a fresh round, but bank the coins its done items already earned */
+function resetKeep(key,id){
+  const arr=S[key];if(!arr.length)return;
+  const earned=arr.filter(i=>i.done).length*COIN(key);
+  const label=(S.cfg.lists[key]&&S.cfg.lists[key].title)||key;
+  if(!confirm('Clear all items in "'+label+'"?\n\n'+
+    'The '+earned+' 🪙 you already earned here stay banked. The list empties for a fresh round.'))return;
+  S.banked=(S.banked||0)+earned;   // move earned coins into the permanent bank BEFORE clearing
+  S[key]=[];
+  save();renderList(id,S[key],key);rollCoins();updateAfford();
+  toast(earned?('+'+earned+' 🪙 KEPT · CLEARED'):'CLEARED');
 }
 function editName(node,key,i){
   const cur=S[key][i].name;const inp=document.createElement('input');inp.value=cur;
@@ -562,6 +587,13 @@ document.getElementById('t-log').onclick=()=>{
   if(record){fanfare();const r=tBest.getBoundingClientRect();burst(r.left+20,r.top+20,44);
     flyCoins(r.left+20,r.top+20,S.cfg.streak.coins);updateAfford();toast('NEW PERSONAL BEST! '+S.cfg.streak.emoji+' +'+S.cfg.streak.coins+' 🪙');}
   else{coinDrop();toast('logged. keep going');}
+};
+document.getElementById('t-reset').onclick=()=>{
+  if(!S.tennisLog.length&&!S.tennisBest)return;
+  if(!confirm('Reset your '+S.cfg.streak.title+'?\n\n'+
+    'The '+(S.tennisCoins||0)+' 🪙 you earned from records stay banked. Best resets to 0 for a fresh run.'))return;
+  S.tennisLog=[];S.tennisBest=0;save();renderTennis();rollCoins();updateAfford();
+  toast('STREAK RESET · COINS KEPT');
 };
 
 /* ---- prize vault ---- */
